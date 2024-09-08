@@ -7,12 +7,8 @@ import os
 import re
 import mlflow
 spark.conf.set("spark.databricks.cloudFiles.schemaInference.sampleSize.numFiles", "10")
+catalog_prefix = "demand_planning_catalog"
 db_prefix = "demand_planning"
-
-# COMMAND ----------
-
-#spark.sql(f"DROP DATABASE IF EXISTS {dbName} CASCADE")
-#dbutils.fs.rm(cloud_storage_path, True)
 
 # COMMAND ----------
 
@@ -25,19 +21,19 @@ else:
 current_user_no_at = re.sub(r'\W+', '_', current_user_no_at)
 
 dbName = db_prefix+"_"+current_user_no_at
-cloud_storage_path = f"/Users/{current_user}/field_demos/{db_prefix}"
+catalogName = catalog_prefix+"_"+current_user_no_at
 reset_all = dbutils.widgets.get("reset_all_data") == "true"
 
 if reset_all:
-  spark.sql(f"DROP DATABASE IF EXISTS {dbName} CASCADE")
-  dbutils.fs.rm(cloud_storage_path, True)
+  spark.sql(f"DROP CATALOG IF EXISTS {catalogName} CASCADE")
 
-spark.sql(f"""create database if not exists {dbName} LOCATION '{cloud_storage_path}/tables' """)
-spark.sql(f"""USE {dbName}""")
+spark.sql(f"""CREATE CATALOG IF NOT EXISTS {catalogName}""")
+spark.sql(f"""CREATE SCHEMA IF NOT EXISTS {catalogName}.{dbName}""")
+spark.sql(f"""USE {catalogName}.{dbName}""")
 
 # COMMAND ----------
 
-print(cloud_storage_path)
+print(catalogName)
 print(dbName)
 
 # COMMAND ----------
@@ -47,8 +43,6 @@ reset_all_bool = (reset_all == 'true')
 
 # COMMAND ----------
 
-path = cloud_storage_path
-
 dirname = os.path.dirname(dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get())
 filename = "01-data-generator"
 if (os.path.basename(dirname) != '_resources'):
@@ -56,13 +50,13 @@ if (os.path.basename(dirname) != '_resources'):
 generate_data_notebook_path = os.path.join(dirname,filename)
 
 def generate_data():
-  dbutils.notebook.run(generate_data_notebook_path, 600, {"reset_all_data": reset_all, "dbName": dbName, "cloud_storage_path": cloud_storage_path})
+  dbutils.notebook.run(generate_data_notebook_path, 600, {"reset_all_data": reset_all, "catalogName": catalogName, "dbName": dbName})
 
 if reset_all_bool:
   generate_data()
 else:
   try:
-    dbutils.fs.ls(path)
+    print("Skipping Reset")
   except: 
     generate_data()
 

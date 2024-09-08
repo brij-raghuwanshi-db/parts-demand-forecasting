@@ -28,6 +28,10 @@
 
 # COMMAND ----------
 
+# MAGIC %restart_python
+
+# COMMAND ----------
+
 from solacc.companion import NotebookSolutionCompanion
 
 # COMMAND ----------

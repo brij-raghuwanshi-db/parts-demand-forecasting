@@ -1,7 +1,7 @@
 # Databricks notebook source
 dbutils.widgets.dropdown('reset_all_data', 'false', ['true', 'false'], 'Reset all data')
+dbutils.widgets.text('catalogName',  'demand_cat' , 'Catalog Name')
 dbutils.widgets.text('dbName',  'demand_db' , 'Database Name')
-dbutils.widgets.text('cloud_storage_path',  '/FileStore/tables/demand_forecasting_solution_accelerator/', 'Storage Path')
 
 # COMMAND ----------
 
@@ -9,13 +9,13 @@ print("Starting ./_resources/01-data-generator")
 
 # COMMAND ----------
 
-cloud_storage_path = dbutils.widgets.get('cloud_storage_path')
+catalogName = dbutils.widgets.get('catalogName')
 dbName = dbutils.widgets.get('dbName')
 reset_all_data = dbutils.widgets.get('reset_all_data') == 'true'
 
 # COMMAND ----------
 
-print(cloud_storage_path)
+print(catalogName)
 print(dbName)
 print(reset_all_data)
 
@@ -333,28 +333,19 @@ display(demand_df.join(demand_df.sample(False, 1 / demand_df.count(), seed=0).li
 
 # COMMAND ----------
 
-demand_df_delta_path = os.path.join(cloud_storage_path, 'demand_df_delta')
-
-# COMMAND ----------
-
 # Write the data 
 demand_df.write \
 .mode("overwrite") \
 .format("delta") \
-.save(demand_df_delta_path)
+.saveAsTable(f"{catalogName}.{dbName}.part_level_demand")
 
 # COMMAND ----------
 
-spark.sql(f"DROP TABLE IF EXISTS {dbName}.part_level_demand")
-spark.sql(f"CREATE TABLE {dbName}.part_level_demand USING DELTA LOCATION '{demand_df_delta_path}'")
+display(spark.sql(f"SELECT * FROM {catalogName}.{dbName}.part_level_demand"))
 
 # COMMAND ----------
 
-display(spark.sql(f"SELECT * FROM {dbName}.part_level_demand"))
-
-# COMMAND ----------
-
-display(spark.sql(f"SELECT COUNT(*) as row_count FROM {dbName}.part_level_demand"))
+display(spark.sql(f"SELECT COUNT(*) as row_count FROM {catalogName}.{dbName}.part_level_demand"))
 
 # COMMAND ----------
 
@@ -441,7 +432,7 @@ random_mat_numbers = generate_random_strings(1000000)
 # COMMAND ----------
 
 #Create a listof all SKU's
-demand_df = spark.read.table(f"{dbName}.part_level_demand")
+demand_df = spark.read.table(f"{catalogName}.{dbName}.part_level_demand")
 all_skus = demand_df.select('SKU').distinct().rdd.flatMap(lambda x: x).collect()
 
 # COMMAND ----------
@@ -498,44 +489,26 @@ final_mat_number_to_sku_mapper_df = spark.createDataFrame(final_mat_number_to_sk
 
 # COMMAND ----------
 
-bom_df_delta_path = os.path.join(cloud_storage_path, 'bom_df_delta')
-
-# COMMAND ----------
-
 # Write the data 
 bom_df.write \
 .mode("overwrite") \
 .format("delta") \
-.save(bom_df_delta_path)
-
-# COMMAND ----------
-
-spark.sql(f"DROP TABLE IF EXISTS {dbName}.bom")
-spark.sql(f"CREATE TABLE {dbName}.bom USING DELTA LOCATION '{bom_df_delta_path}'")
-
-# COMMAND ----------
-
-final_mat_number_to_sku_mapper_df_path = os.path.join(cloud_storage_path, 'sku_mapper_df_delta')
+.saveAsTable(f"{catalogName}.{dbName}.bom")
 
 # COMMAND ----------
 
 final_mat_number_to_sku_mapper_df.write \
 .mode("overwrite") \
 .format("delta") \
-.save(final_mat_number_to_sku_mapper_df_path)
+.saveAsTable(f"{catalogName}.{dbName}.sku_mapper")
 
 # COMMAND ----------
 
-spark.sql(f"DROP TABLE IF EXISTS {dbName}.sku_mapper")
-spark.sql(f"CREATE TABLE {dbName}.sku_mapper USING DELTA LOCATION '{final_mat_number_to_sku_mapper_df_path}'")
+display(spark.sql(f"select * from {catalogName}.{dbName}.sku_mapper"))
 
 # COMMAND ----------
 
-display(spark.sql(f"select * from {dbName}.sku_mapper"))
-
-# COMMAND ----------
-
-display(spark.sql(f"select * from {dbName}.bom"))
+display(spark.sql(f"select * from {catalogName}.{dbName}.bom"))
 
 # COMMAND ----------
 

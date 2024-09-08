@@ -12,12 +12,12 @@
 
 # MAGIC %md
 # MAGIC *Prerequisite: Make sure to run 01_Introduction_And_Setup, 02_Fine_Grained_Demand_Forecasting and 03_Derive_Raw_Material_Demand before running this notebook.*
-# MAGIC 
+# MAGIC
 # MAGIC While the previous notebook *(03_Derive_Raw_Material_Demand)* demonstrated Databricks' graph functionality to traverse the manufacturing value chain backwards to find out how much raw material is needed for production, this notebook:
 # MAGIC - Checks the availability of each raw material
 # MAGIC - Traverses the manufacturing value chain forwards to check the quantity of SKU's that can actually be delivered
 # MAGIC - Adjusts orders for raw materials accordingly
-# MAGIC 
+# MAGIC
 # MAGIC Key highlights for this notebook:
 # MAGIC - Use Delta and the previous notebook's results to traverse the manufacturing value chain forwards
 
@@ -32,7 +32,7 @@
 
 # COMMAND ----------
 
-print(cloud_storage_path)
+print(catalogName)
 print(dbName)
 
 # COMMAND ----------
@@ -52,11 +52,11 @@ notebook_path = os.path.join(os.path.dirname(notebook_path),"Helper/Simulate_Mat
 
 # COMMAND ----------
 
-dbutils.notebook.run(notebook_path, 600, {"dbName": dbName, "cloud_storage_path": cloud_storage_path})
+dbutils.notebook.run(notebook_path, 600, {"catalogName": catalogName, "dbName": dbName})
 
 # COMMAND ----------
 
-display(spark.sql(f"select * from {dbName}.material_shortage"))
+display(spark.sql(f"select * from {catalogName}.{dbName}.material_shortage"))
 
 # COMMAND ----------
 
@@ -66,8 +66,8 @@ display(spark.sql(f"select * from {dbName}.material_shortage"))
 
 # COMMAND ----------
 
-demand_raw_df = spark.read.table(f"{dbName}.forecast_raw")
-material_shortage_df = spark.read.table(f"{dbName}.material_shortage")
+demand_raw_df = spark.read.table(f"{catalogName}.{dbName}.forecast_raw")
+material_shortage_df = spark.read.table(f"{catalogName}.{dbName}.material_shortage")
 
 # COMMAND ----------
 
@@ -120,24 +120,11 @@ display(raw_overplanning_df)
 
 # COMMAND ----------
 
-material_shortage_data_path = os.path.join(cloud_storage_path, "material_shortage_sku")
-
-# COMMAND ----------
-
 # Write the data 
 affected_skus_df.write \
 .mode("overwrite") \
 .format("delta") \
-.save(material_shortage_data_path)
-
-# COMMAND ----------
-
-spark.sql(f"DROP TABLE IF EXISTS {dbName}.material_shortage_sku")
-spark.sql(f"CREATE TABLE {dbName}.material_shortage_sku USING DELTA LOCATION '{material_shortage_data_path}'")
-
-# COMMAND ----------
-
-material_shortage_raw_data_path = os.path.join(cloud_storage_path, "material_shortage_raw")
+.saveAsTable(f"{catalogName}.{dbName}.material_shortage_sku")
 
 # COMMAND ----------
 
@@ -145,17 +132,12 @@ material_shortage_raw_data_path = os.path.join(cloud_storage_path, "material_sho
 raw_overplanning_df.write \
 .mode("overwrite") \
 .format("delta") \
-.save(material_shortage_raw_data_path)
+.saveAsTable(f"{catalogName}.{dbName}.material_shortage_raw")
 
 # COMMAND ----------
 
-spark.sql(f"DROP TABLE IF EXISTS {dbName}.material_shortage_raw")
-spark.sql(f"CREATE TABLE {dbName}.material_shortage_raw USING DELTA LOCATION '{material_shortage_raw_data_path}'")
+display(spark.sql(f"SELECT * FROM {catalogName}.{dbName}.material_shortage_sku"))
 
 # COMMAND ----------
 
-display(spark.sql(f"SELECT * FROM {dbName}.material_shortage_sku"))
-
-# COMMAND ----------
-
-display(spark.sql(f"SELECT * FROM {dbName}.material_shortage_raw"))
+display(spark.sql(f"SELECT * FROM {catalogName}.{dbName}.material_shortage_raw"))
